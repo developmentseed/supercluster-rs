@@ -1,0 +1,9 @@
+[package]
+name = "supercluster-rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+flatbush = { git = "https://github.com/kylebarron/flatbush-rs", rev = "4686d53eb9bf57e5c35996bbd88313266e602aba" }
