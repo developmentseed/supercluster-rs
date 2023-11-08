@@ -1,4 +1,5 @@
-use flatbush::{KdbushBuilder, OwnedKdbush};
+use std::collections::HashMap;
+
 // TODO: fix export
 use flatbush::kdbush::r#trait::KdbushIndex;
 
@@ -11,11 +12,24 @@ pub struct Supercluster {
     options: SuperclusterOptions,
 
     /// Vector of KDBush structures for different zoom levels
-    // TODO: switch to Vec<Option<TreeWithData>>,
-    trees: Vec<TreeWithData>,
+    trees: HashMap<usize, TreeWithData>,
+
+    points: Vec<(f64, f64)>,
 }
 
 impl Supercluster {
+    pub(crate) fn new(
+        points: Vec<(f64, f64)>,
+        trees: HashMap<usize, TreeWithData>,
+        options: SuperclusterOptions,
+    ) -> Self {
+        Self {
+            options,
+            trees,
+            points,
+        }
+    }
+
     /// Returns a vec with the cluster ids
     pub fn get_clusters(
         &self,
@@ -140,9 +154,7 @@ impl Supercluster {
             cluster_id = children[0].properties.cluster_id;
         }
         return expansion_zoom;
-
     }
-
 
     fn append_leaves(
         &self,

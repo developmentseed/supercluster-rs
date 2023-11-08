@@ -1,26 +1,74 @@
+use std::collections::HashMap;
+
 use flatbush::kdbush::r#trait::KdbushIndex;
 
 use crate::cluster::{ClusterData, ClusterId};
 use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
+use crate::Supercluster;
 
 pub struct SuperclusterBuilder {
     options: SuperclusterOptions,
+    // TODO: in the future, this should be a chunked array of geoarrow points
+    points: Vec<(f64, f64)>,
+    pos: usize,
+    // If points are already in spherical mercator
+    // preprojected: bool,
 }
 
 impl SuperclusterBuilder {
-    pub fn new() -> Self {
-        Self::new_with_options(Default::default())
+    pub fn new(num_items: usize) -> Self {
+        Self::new_with_options(num_items, Default::default())
     }
 
-    pub fn new_with_options(options: SuperclusterOptions) -> Self {
+    pub fn new_with_options(num_items: usize, options: SuperclusterOptions) -> Self {
         let max_zoom = options.max_zoom;
+        let points = Vec::with_capacity(num_items);
 
-        // TODO: don't create trees for lower zooms if unused
         Self {
             options,
-            trees: Vec::with_capacity(max_zoom + 1),
+            points,
+            pos: 0,
         }
+    }
+
+    // Add a point to the index
+    pub fn add(&mut self, x: f64, y: f64) -> usize {
+        let idx = self.pos;
+        self.coords.push(x);
+        self.coords.push(y);
+        self.pos += 1;
+        idx
+    }
+
+    pub fn finish(self) -> Supercluster {
+        assert_eq!(
+            self.pos,
+            self.points.len(),
+            "Expected {} added points, got {}.",
+            self.points.len(),
+            self.pos
+        );
+
+        let min_zoom = self.options.min_zoom;
+        let max_zoom = self.options.max_zoom;
+        let node_size = self.options.node_size;
+
+        let mut data = Vec::with_capacity(self.points.len());
+        for (i, (lon, lat)) in self.points.iter().enumerate() {
+            data.push(ClusterData::new(lon, lat, i));
+        }
+
+        let mut tree_with_data = TreeWithData::new(data, node_size);
+        let mut trees = HashMap::with_capacity(max_zoom - min_zoom + 1);
+        trees.insert(max_zoom + 1, tree_with_data);
+
+        for zoom in max_zoom..min_zoom {
+            tree_with_data = self.cluster(tree_with_data, zoom);
+            trees.insert(zoom, tree_with_data);
+        }
+
+        Supercluster::new(self.points, trees, self.options)
     }
 
     pub fn load(&mut self, x: Vec<f64>, y: Vec<f64>) {
@@ -69,8 +117,7 @@ impl SuperclusterBuilder {
                 let wy = y * num_points_origin as f64;
 
                 // encode both zoom and point index on which the cluster originated -- offset by total length of features
-                let id = ClusterId::new(idx, zoom, todo!());
-                // self.points.len()
+                let id = ClusterId::new(idx, zoom, self.points.len());
 
                 for neighbor_id in neighbor_ids {
                     let neighbor_data = cluster_data[neighbor_id];
