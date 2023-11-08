@@ -3,7 +3,7 @@ use crate::util::{latitude_to_y, longitude_to_x};
 // encode both zoom and point index on which the cluster originated -- offset by total length of
 // features
 #[repr(transparent)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClusterId(usize);
 
 impl ClusterId {
@@ -14,6 +14,17 @@ impl ClusterId {
 
     pub fn as_usize(self) -> usize {
         self.0
+    }
+
+    /// get index of the point from which the cluster originated
+    // Note: I _think_ this doesn't return a ClusterId
+    pub(crate) fn get_origin_idx(&self, length: usize) -> usize {
+        (self.0 - length) >> 5
+    }
+
+    /// get zoom of the point from which the cluster originated
+    pub(crate) fn get_origin_zoom(&self, length: usize) -> usize {
+        (self.0 - length) % 32
     }
 }
 
