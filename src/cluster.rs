@@ -1,4 +1,4 @@
-use crate::util::{latitude_to_y, longitude_to_x};
+use crate::util::{latitude_to_y, longitude_to_x, x_to_longitude, y_to_latitude};
 
 // encode both zoom and point index on which the cluster originated -- offset by total length of
 // features
@@ -83,6 +83,73 @@ impl ClusterData {
 
     pub fn y(&self) -> f64 {
         self.y
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClusterInfo {
+    /// If this is a cluster,
+    ///
+    /// If this is not a cluster, this references the positional index of data added to
+    /// Supercluster.
+    id: ClusterId,
+
+    /// The longitude of the cluster
+    x: f64,
+
+    /// The latitude of the cluster
+    y: f64,
+
+    /// If true, references a cluster with containing data. Otherwise, is an original point that
+    /// was added to the index.
+    cluster: bool,
+
+    /// Note: this will always be 1 if `cluster`` is false
+    point_count: usize,
+}
+
+impl ClusterInfo {
+    pub fn new_cluster(id: ClusterId, x: f64, y: f64, count: usize) -> Self {
+        Self {
+            id,
+            x: x_to_longitude(x),
+            y: y_to_latitude(y),
+            cluster: true,
+            point_count: count,
+        }
+    }
+
+    /// NOTE: here the x and y are already in the user's own coordinate system (usually lon-lat),
+    /// so no need to reproject back.
+    pub fn new_leaf(id: ClusterId, x: f64, y: f64) -> Self {
+        Self {
+            id,
+            x,
+            y,
+            cluster: false,
+            point_count: 1,
+        }
+    }
+
+    pub fn id(&self) -> ClusterId {
+        self.id
+    }
+
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    pub fn y(&self) -> f64 {
+        self.y
+    }
+
+    pub fn cluster(&self) -> bool {
+        self.cluster
+    }
+
+    /// The number of points contained in this cluster
+    pub fn count(&self) -> usize {
+        self.point_count
     }
 }
 

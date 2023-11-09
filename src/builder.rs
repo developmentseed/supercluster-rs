@@ -7,6 +7,7 @@ use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
 use crate::Supercluster;
 
+/// A data class used to construct a [Supercluster] instance.
 pub struct SuperclusterBuilder {
     options: SuperclusterOptions,
     // TODO: in the future, this should be a chunked array of geoarrow points
@@ -17,10 +18,12 @@ pub struct SuperclusterBuilder {
 }
 
 impl SuperclusterBuilder {
+    /// Construct a new [SuperclusterBuilder] with the given number of points and default options.
     pub fn new(num_items: usize) -> Self {
         Self::new_with_options(num_items, Default::default())
     }
 
+    /// Construct a new [SuperclusterBuilder] with the given number of points and default options.
     pub fn new_with_options(num_items: usize, options: SuperclusterOptions) -> Self {
         let points = Vec::with_capacity(num_items);
 
@@ -39,6 +42,7 @@ impl SuperclusterBuilder {
         idx
     }
 
+    /// Convert a [SuperclusterBuilder] to a [Supercluster] by running hierarchical clustering.
     pub fn finish(self) -> Supercluster {
         assert_eq!(
             self.pos,

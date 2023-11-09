@@ -3,7 +3,7 @@ use std::collections::HashMap;
 // TODO: fix export
 use flatbush::kdbush::r#trait::KdbushIndex;
 
-use crate::cluster::ClusterId;
+use crate::cluster::{ClusterId, ClusterInfo};
 use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
 
@@ -14,6 +14,7 @@ pub struct Supercluster {
     /// Vector of KDBush structures for different zoom levels
     trees: HashMap<usize, TreeWithData>,
 
+    /// Note: these points are in the user's original coordinate system (usually lon-lat).
     points: Vec<(f64, f64)>,
 }
 
@@ -38,7 +39,7 @@ impl Supercluster {
         max_lng: f64,
         max_lat: f64,
         zoom: usize,
-    ) -> Vec<ClusterId> {
+    ) -> Vec<ClusterInfo> {
         let mut min_lng = ((min_lng + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
         let min_lat = min_lat.clamp(-90.0, 90.0);
         let mut max_lng = if max_lng == 180.0 {
@@ -71,11 +72,15 @@ impl Supercluster {
             let num_points = cluster_data.num_points;
             // If there's more than one point in this cluster, group them.
             if num_points > 1 {
-                let tmp: Vec<ClusterId> = todo!();
-                clusters.extend(tmp);
+                clusters.push(ClusterInfo::new_cluster(
+                    cluster_data.source_id,
+                    cluster_data.x,
+                    cluster_data.y,
+                    cluster_data.num_points,
+                ));
             } else {
-                let cluster_id = cluster_data.source_id;
-                clusters.push(cluster_id);
+                let (x, y) = self.points[id];
+                clusters.push(ClusterInfo::new_leaf(cluster_data.source_id, x, y))
             }
         }
 
@@ -139,6 +144,8 @@ impl Supercluster {
         todo!()
     }
 
+    /// Returns the zoom on which the cluster expands into several children (useful for "click to
+    /// zoom" feature) given the cluster's cluster_id.
     pub fn get_cluster_expansion_zoom(&self, cluster_id: ClusterId) -> usize {
         let mut expansion_zoom = cluster_id.get_origin_zoom(self.points.len()) - 1;
         while expansion_zoom <= self.options.max_zoom {
@@ -163,9 +170,30 @@ impl Supercluster {
         todo!()
     }
 
-    fn get_cluster_json(&self) {}
-
     fn clamp_zoom(&self, zoom: usize) -> usize {
         zoom.clamp(self.options.min_zoom, self.options.max_zoom + 1)
+    }
+}
+
+
+
+#[cfg(test)]
+mod test {
+    use crate::SuperclusterBuilder;
+    use crate::test::load_fixture::load_places;
+
+    use super::*;
+
+    #[test]
+    fn test_builder() {
+        let coords = load_places();
+        let mut builder = SuperclusterBuilder::new(coords.len());
+        for coord in coords {
+            builder.add(coord[0], coord[1]);
+        }
+        let supercluster = builder.finish();
+        let clusters = supercluster.get_clusters(-50., -50., 50., 50., 0);
+        dbg!(&clusters);
+        // dbg!(supercluster);
     }
 }
