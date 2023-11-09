@@ -89,15 +89,16 @@ impl SuperclusterBuilder {
         // loop through each point
         //  (idx, data) in cluster_data.iter().enumerate()
         for idx in 0..cluster_data.len() {
-            // We clone this data instance to mutate it in isolation, and then set it back on the
-            // cluster_data vec at the end
-            let mut data = cluster_data[idx].clone();
-            // let x = cluster_data.get_mut(idx).unwrap();
+            let data = &cluster_data[idx];
 
             // if we've already visited the point at this zoom level, skip it
             if data.zoom.is_some_and(|z| z <= zoom) {
                 continue;
             }
+
+            // We clone this data instance to mutate it in isolation, and then set it back on the
+            // cluster_data vec at the end
+            let mut data = data.clone();
 
             data.zoom = Some(zoom);
 
@@ -112,7 +113,8 @@ impl SuperclusterBuilder {
             // count the number of points in a potential cluster
             for neighbor_id in neighbor_ids.iter() {
                 // filter out neighbors that are already processed
-                if cluster_data[*neighbor_id].zoom.is_some_and(|z| z > zoom) {
+                let neighbor_data = &cluster_data[*neighbor_id];
+                if neighbor_data.zoom.is_some_and(|z| z > zoom) {
                     num_points += data.num_points;
                 }
             }
@@ -126,13 +128,18 @@ impl SuperclusterBuilder {
                 let id = ClusterId::new(idx, zoom, self.points.len());
 
                 for neighbor_id in neighbor_ids {
-                    // Clone this value
-                    // TODO: check I'm setting this correctly
-                    let mut neighbor_data = cluster_data[neighbor_id].clone();
+                    let neighbor_data = &cluster_data[neighbor_id];
 
                     if neighbor_data.zoom.is_some_and(|z| z <= zoom) {
                         continue;
                     }
+
+                    // TODO: change this section to just create a new ClusterData object manually
+                    // instead of cloning and then setting fields
+
+                    // Clone this value to mutate it
+                    let mut neighbor_data = neighbor_data.clone();
+
                     // save the zoom (so it doesn't get processed twice)
                     neighbor_data.zoom = Some(zoom);
 
@@ -180,6 +187,8 @@ impl SuperclusterBuilder {
                 }
             }
 
+            // Need to set back onto cluster_data to emulate changing the `data` array
+            // directly like JS does
             cluster_data[idx] = data;
         }
 

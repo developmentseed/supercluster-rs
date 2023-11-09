@@ -85,3 +85,17 @@ impl ClusterData {
         self.y
     }
 }
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_get_origin_idx() {
+        let id = ClusterId::new_source_id(100);
+        let x = id.get_origin_idx(0);
+        dbg!(&x);
+    }
+
+}
