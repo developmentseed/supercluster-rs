@@ -9,3 +9,6 @@ pub use builder::SuperclusterBuilder;
 pub use cluster::{ClusterData, ClusterId};
 pub use options::SuperclusterOptions;
 pub use supercluster::Supercluster;
+
+#[cfg(test)]
+pub(crate) mod test;

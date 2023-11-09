@@ -62,8 +62,7 @@ impl SuperclusterBuilder {
         let mut trees = HashMap::with_capacity(max_zoom - min_zoom + 1);
         trees.insert(max_zoom + 1, full_res_tree);
 
-        // TODO: I think this should be min_zoom - 1, because we want to be inclusive of min_zoom
-        for zoom in (min_zoom - 1..=max_zoom).rev() {
+        for zoom in (min_zoom..=max_zoom).rev() {
             // The tree at the next higher zoom
             let previous_tree = trees.get_mut(&(zoom + 1)).unwrap();
             let current = self.cluster(previous_tree, zoom);
@@ -193,5 +192,23 @@ impl SuperclusterBuilder {
         }
 
         TreeWithData::new(next_data, self.options.node_size)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::test::load_fixture::load_places;
+
+    use super::*;
+
+    #[test]
+    fn test_builder() {
+        let coords = load_places();
+        let mut builder = SuperclusterBuilder::new(coords.len());
+        for coord in coords {
+            builder.add(coord[0], coord[1]);
+        }
+        let _supercluster = builder.finish();
+        // dbg!(supercluster);
     }
 }

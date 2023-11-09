@@ -86,7 +86,6 @@ impl ClusterData {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -97,5 +96,4 @@ mod test {
         let x = id.get_origin_idx(0);
         dbg!(&x);
     }
-
 }
