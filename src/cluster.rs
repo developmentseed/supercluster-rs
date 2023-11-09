@@ -3,12 +3,20 @@ use crate::util::{latitude_to_y, longitude_to_x};
 // encode both zoom and point index on which the cluster originated -- offset by total length of
 // features
 #[repr(transparent)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ClusterId(usize);
 
+// Note: I think like many of mourner's projects, here the ID can have multiple meanings depending
+// on whether it's a leaf or an internal node of the tree
+//
+// Thus we have multiple constructors
 impl ClusterId {
     pub fn new(i: usize, zoom: usize, length: usize) -> Self {
         let id = (i << 5) + (zoom + 1) + length;
+        Self(id)
+    }
+
+    pub fn new_source_id(id: usize) -> Self {
         Self(id)
     }
 

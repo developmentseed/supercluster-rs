@@ -18,4 +18,12 @@ impl TreeWithData {
         let tree = tree_builder.finish();
         Self { tree, data }
     }
+
+    pub(crate) fn data(&self) -> &[ClusterData] {
+        &self.data
+    }
+
+    pub(crate) fn tree(&self) -> &OwnedKdbush {
+        &self.tree
+    }
 }

@@ -58,16 +58,16 @@ impl Supercluster {
             return eastern_hem;
         }
 
-        let tree_with_data = self.trees[self.clamp_zoom(zoom)];
+        let tree_with_data = self.trees.get(&self.clamp_zoom(zoom)).unwrap();
         let ids = tree_with_data
             .tree
             .as_flatbush()
             .range(min_lng, min_lat, max_lng, max_lat);
-        let data = tree_with_data.data;
+        let data = tree_with_data.data();
 
         let mut clusters = Vec::with_capacity(ids.len());
         for id in ids {
-            let cluster_data = data[id];
+            let cluster_data = &data[id];
             let num_points = cluster_data.num_points;
             // If there's more than one point in this cluster, group them.
             if num_points > 1 {
@@ -83,14 +83,13 @@ impl Supercluster {
     }
 
     pub fn get_children(&self, cluster_id: ClusterId) -> Vec<usize> {
-        let origin_id = cluster_id.get_origin_idx(self.points.length);
-        let origin_zoom = cluster_id.get_origin_zoom(self.points.length);
+        let origin_id = cluster_id.get_origin_idx(self.points.len());
+        let origin_zoom = cluster_id.get_origin_zoom(self.points.len());
 
-        let tree_with_data = self.trees[origin_zoom];
-        // assert!(tree_with_data);
+        let tree_with_data = self.trees.get(&origin_zoom).unwrap();
 
-        let cluster_data = tree_with_data.data;
-        let tree = tree_with_data.tree;
+        let cluster_data = tree_with_data.data();
+        let tree = tree_with_data.tree();
         // if (origin_id * this.stride >= data.length) throw new Error(errorMsg);
 
         let r = self.options.radius
@@ -101,7 +100,7 @@ impl Supercluster {
         let mut children = vec![];
 
         for id in ids {
-            let child_data = cluster_data[id];
+            let child_data = &cluster_data[id];
             if child_data
                 .parent_id
                 .is_some_and(|parent_id| parent_id == cluster_id)
@@ -116,25 +115,22 @@ impl Supercluster {
 
         assert!(children.len() > 0);
 
-        return children;
+        todo!()
+        // return children;
     }
 
-    pub fn get_leaves(
-        &self,
-        cluster_id: ClusterId,
-        limit: Option<usize>,
-        offset: Option<usize>,
-    ) -> Vec<_> {
+    pub fn get_leaves(&self, cluster_id: ClusterId, limit: Option<usize>, offset: Option<usize>) {
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
 
-        let mut leaves = vec![];
+        // let mut leaves = vec![];
 
-        leaves
+        // leaves
+        todo!()
     }
 
     pub fn get_tile(self, z: usize, x: usize, y: usize) {
-        let tree = self.trees[self.clamp_zoom(z)];
+        let tree = self.trees.get(&self.clamp_zoom(z)).unwrap();
         let z2 = usize::pow(2, z.try_into().unwrap());
         let p = self.options.radius / self.options.extent;
         // let top = (y - p) / z2;
@@ -144,14 +140,15 @@ impl Supercluster {
     }
 
     pub fn get_cluster_expansion_zoom(&self, cluster_id: ClusterId) -> usize {
-        let mut expansion_zoom = cluster_id.get_origin_zoom(self.points.length) - 1;
+        let mut expansion_zoom = cluster_id.get_origin_zoom(self.points.len()) - 1;
         while expansion_zoom <= self.options.max_zoom {
             let children = self.get_children(cluster_id);
             expansion_zoom += 1;
             if children.len() != 1 {
                 break;
             }
-            cluster_id = children[0].properties.cluster_id;
+            todo!()
+            // cluster_id = children[0].properties.cluster_id;
         }
         return expansion_zoom;
     }
@@ -168,13 +165,7 @@ impl Supercluster {
 
     fn get_cluster_json(&self) {}
 
-    fn clamp_zoom(&self, z: usize) -> usize {
-        z.clamp(self.options.min_zoom, self.options.max_zoom + 1)
+    fn clamp_zoom(&self, zoom: usize) -> usize {
+        zoom.clamp(self.options.min_zoom, self.options.max_zoom + 1)
     }
 }
-
-// impl Default for Supercluster {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }

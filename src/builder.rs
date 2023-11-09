@@ -22,7 +22,6 @@ impl SuperclusterBuilder {
     }
 
     pub fn new_with_options(num_items: usize, options: SuperclusterOptions) -> Self {
-        let max_zoom = options.max_zoom;
         let points = Vec::with_capacity(num_items);
 
         Self {
@@ -35,8 +34,7 @@ impl SuperclusterBuilder {
     // Add a point to the index
     pub fn add(&mut self, x: f64, y: f64) -> usize {
         let idx = self.pos;
-        self.coords.push(x);
-        self.coords.push(y);
+        self.points.push((x, y));
         self.pos += 1;
         idx
     }
@@ -56,38 +54,46 @@ impl SuperclusterBuilder {
 
         let mut data = Vec::with_capacity(self.points.len());
         for (i, (lon, lat)) in self.points.iter().enumerate() {
-            data.push(ClusterData::new(lon, lat, i));
+            data.push(ClusterData::new(*lon, *lat, ClusterId::new_source_id(i)));
         }
 
-        let mut tree_with_data = TreeWithData::new(data, node_size);
-        let mut trees = HashMap::with_capacity(max_zoom - min_zoom + 1);
-        trees.insert(max_zoom + 1, tree_with_data);
+        let full_res_tree = TreeWithData::new(data, node_size);
 
-        for zoom in max_zoom..min_zoom {
-            tree_with_data = self.cluster(tree_with_data, zoom);
-            trees.insert(zoom, tree_with_data);
+        let mut trees = HashMap::with_capacity(max_zoom - min_zoom + 1);
+        trees.insert(max_zoom + 1, full_res_tree);
+
+        // TODO: I think this should be min_zoom - 1, because we want to be inclusive of min_zoom
+        for zoom in (min_zoom - 1..=max_zoom).rev() {
+            // The tree at the next higher zoom
+            let previous_tree = trees.get_mut(&(zoom + 1)).unwrap();
+            let current = self.cluster(previous_tree, zoom);
+
+            trees.insert(zoom, current);
         }
 
         Supercluster::new(self.points, trees, self.options)
     }
 
-    pub fn load(&mut self, x: Vec<f64>, y: Vec<f64>) {
-        let min_zoom = self.options.min_zoom;
-        let max_zoom = self.options.max_zoom;
-    }
-
-    fn cluster(&self, tree_with_data: TreeWithData, zoom: usize) -> Vec<ClusterData> {
+    /// Note: this mutates previous_tree's `data`.
+    // This is derived from Supercluster._cluster in the original JS implementation
+    fn cluster(&self, previous_tree_with_data: &mut TreeWithData, zoom: usize) -> TreeWithData {
         let radius = self.options.radius;
         let extent = self.options.extent;
         let min_points = self.options.min_points;
 
         let r = radius / (extent * usize::pow(2, zoom.try_into().unwrap()) as f64);
-        let cluster_data = tree_with_data.data;
-        let tree = tree_with_data.tree;
+        let cluster_data = &mut previous_tree_with_data.data;
+        let previous_tree = &previous_tree_with_data.tree;
         let mut next_data = vec![];
 
         // loop through each point
-        for (idx, data) in cluster_data.iter().enumerate() {
+        //  (idx, data) in cluster_data.iter().enumerate()
+        for idx in 0..cluster_data.len() {
+            // We clone this data instance to mutate it in isolation, and then set it back on the
+            // cluster_data vec at the end
+            let mut data = cluster_data[idx].clone();
+            // let x = cluster_data.get_mut(idx).unwrap();
+
             // if we've already visited the point at this zoom level, skip it
             if data.zoom.is_some_and(|z| z <= zoom) {
                 continue;
@@ -98,29 +104,31 @@ impl SuperclusterBuilder {
             // find all nearby points
             let x = data.x;
             let y = data.y;
-            let neighbor_ids = tree.as_flatbush().within(x, y, r);
+            let neighbor_ids = previous_tree.as_flatbush().within(x, y, r);
 
             let num_points_origin = data.num_points;
             let mut num_points = num_points_origin;
 
             // count the number of points in a potential cluster
-            for neighbor_id in neighbor_ids {
+            for neighbor_id in neighbor_ids.iter() {
                 // filter out neighbors that are already processed
-                if cluster_data[neighbor_id].zoom.is_some_and(|z| z > zoom) {
+                if cluster_data[*neighbor_id].zoom.is_some_and(|z| z > zoom) {
                     num_points += data.num_points;
                 }
             }
 
             // if there were neighbors to merge, and there are enough points to form a cluster
             if num_points > num_points_origin && num_points >= min_points {
-                let wx = x * num_points_origin as f64;
-                let wy = y * num_points_origin as f64;
+                let mut wx = x * num_points_origin as f64;
+                let mut wy = y * num_points_origin as f64;
 
                 // encode both zoom and point index on which the cluster originated -- offset by total length of features
                 let id = ClusterId::new(idx, zoom, self.points.len());
 
                 for neighbor_id in neighbor_ids {
-                    let neighbor_data = cluster_data[neighbor_id];
+                    // Clone this value
+                    // TODO: check I'm setting this correctly
+                    let mut neighbor_data = cluster_data[neighbor_id].clone();
 
                     if neighbor_data.zoom.is_some_and(|z| z <= zoom) {
                         continue;
@@ -134,6 +142,9 @@ impl SuperclusterBuilder {
                     wy += neighbor_data.y * num_points2;
 
                     neighbor_data.parent_id = Some(id);
+
+                    // Re-set changed onto array
+                    cluster_data[neighbor_id] = neighbor_data;
                 }
 
                 cluster_data[idx].parent_id = Some(id);
@@ -147,10 +158,31 @@ impl SuperclusterBuilder {
                 });
             } else {
                 // left points as unclustered
-                todo!()
+                // TODO: double check I'm adding the right thing
+                next_data.push(data.clone());
+
+                if num_points > 1 {
+                    for neighbor_id in neighbor_ids.iter() {
+                        let neighbor_data = &cluster_data[*neighbor_id];
+
+                        if neighbor_data.zoom.is_some_and(|z| z <= zoom) {
+                            continue;
+                        }
+
+                        let mut neighbor_data = neighbor_data.clone();
+                        neighbor_data.zoom = Some(zoom);
+
+                        // Need to set back onto cluster_data to emulate changing the `data` array
+                        // directly like JS does
+                        cluster_data[*neighbor_id] = neighbor_data.clone();
+                        next_data.push(neighbor_data);
+                    }
+                }
             }
+
+            cluster_data[idx] = data;
         }
 
-        next_data
+        TreeWithData::new(next_data, self.options.node_size)
     }
 }
