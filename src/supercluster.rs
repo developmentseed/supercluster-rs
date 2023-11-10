@@ -62,7 +62,7 @@ impl Supercluster {
         let tree_with_data = self.trees.get(&self.clamp_zoom(zoom)).unwrap();
         let ids = tree_with_data
             .tree
-            .as_flatbush()
+            .as_kdbush()
             .range(min_lng, min_lat, max_lng, max_lat);
         let data = tree_with_data.data();
 
@@ -101,7 +101,7 @@ impl Supercluster {
             / (self.options.extent * usize::pow(2, (origin_zoom - 1).try_into().unwrap()) as f64);
         let x = cluster_data[origin_id].x;
         let y = cluster_data[origin_id].y;
-        let ids = tree.as_flatbush().within(x, y, r);
+        let ids = tree.as_kdbush().within(x, y, r);
         let mut children = vec![];
 
         for id in ids {
