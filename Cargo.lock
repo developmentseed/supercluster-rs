@@ -11,7 +11,7 @@ checksum = "374d28ec25809ee0e23827c2ab573d729e293f281dfe393500e7ad618baa61c6"
 [[package]]
 name = "flatbush"
 version = "0.1.0"
-source = "git+https://github.com/kylebarron/flatbush-rs?rev=4686d53eb9bf57e5c35996bbd88313266e602aba#4686d53eb9bf57e5c35996bbd88313266e602aba"
+source = "git+https://github.com/kylebarron/flatbush-rs?rev=5e5cdbf3f5ed033fa9db4e7be4f78fa83945511c#5e5cdbf3f5ed033fa9db4e7be4f78fa83945511c"
 dependencies = [
  "bytemuck",
  "thiserror",

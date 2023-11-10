@@ -108,7 +108,7 @@ impl SuperclusterBuilder {
             // find all nearby points
             let x = data.x;
             let y = data.y;
-            let neighbor_ids = previous_tree.as_flatbush().within(x, y, r);
+            let neighbor_ids = previous_tree.as_kdbush().within(x, y, r);
 
             let num_points_origin = data.num_points;
             let mut num_points = num_points_origin;
