@@ -6,6 +6,7 @@ use flatbush::kdbush::r#trait::KdbushIndex;
 use crate::cluster::{ClusterId, ClusterInfo};
 use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
+use crate::util::{latitude_to_y, longitude_to_x};
 
 #[derive(Debug, Clone)]
 pub struct Supercluster {
@@ -60,10 +61,16 @@ impl Supercluster {
         }
 
         let tree_with_data = self.trees.get(&self.clamp_zoom(zoom)).unwrap();
-        let ids = tree_with_data
-            .tree
-            .as_kdbush()
-            .range(min_lng, min_lat, max_lng, max_lat);
+
+        // NOTE! it is intentional for max_lat to be passed to min_y and for min_lat to be passed
+        // to max_y. Apparently the spherical mercator coord system has a flipped y.
+        let ids = tree_with_data.tree.as_kdbush().range(
+            longitude_to_x(min_lng),
+            latitude_to_y(max_lat),
+            longitude_to_x(max_lng),
+            latitude_to_y(min_lat),
+        );
+
         let data = tree_with_data.data();
 
         let mut clusters = Vec::with_capacity(ids.len());
@@ -174,8 +181,6 @@ impl Supercluster {
         zoom.clamp(self.options.min_zoom, self.options.max_zoom + 1)
     }
 }
-
-
 
 #[cfg(test)]
 mod test {

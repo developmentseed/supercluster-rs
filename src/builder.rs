@@ -102,7 +102,6 @@ impl SuperclusterBuilder {
 
             data[i].zoom = Some(zoom);
 
-
             // find all nearby points
             let x = data[i].x;
             let y = data[i].y;
