@@ -58,7 +58,11 @@ impl SuperclusterBuilder {
 
         let mut data = Vec::with_capacity(self.points.len());
         for (i, (lon, lat)) in self.points.iter().enumerate() {
-            data.push(ClusterData::new(*lon, *lat, ClusterId::new_source_id(i)));
+            data.push(ClusterData::new_geographic(
+                *lon,
+                *lat,
+                ClusterId::new_source_id(i),
+            ));
         }
 
         let full_res_tree = TreeWithData::new(data, node_size);
@@ -110,7 +114,15 @@ impl SuperclusterBuilder {
             // count the number of points in a potential cluster
             for neighbor_id in &neighbor_ids {
                 // filter out neighbors that are already processed
-                if data[*neighbor_id].zoom.is_some_and(|z| z > zoom) {
+
+                // NOTE: in the original implementation, it checked
+                // `if (data[k + OFFSET_ZOOM] > zoom)`
+                // But note that the `OFFSET_ZOOM` in the data array was **initialized** to
+                // `Infinity`. Therefore, this should also be true when `.zoom.is_none()`.
+
+                if data[*neighbor_id].zoom.is_none()
+                    || data[*neighbor_id].zoom.is_some_and(|z| z > zoom)
+                {
                     num_points += data[*neighbor_id].num_points;
                 }
             }
