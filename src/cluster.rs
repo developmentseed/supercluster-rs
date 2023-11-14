@@ -59,7 +59,7 @@ pub struct ClusterData {
 
 impl ClusterData {
     /// Create a new object from longitude-latitude x and y values
-    pub fn new(lon: f64, lat: f64, source_id: ClusterId) -> Self {
+    pub fn new_geographic(lon: f64, lat: f64, source_id: ClusterId) -> Self {
         let x = longitude_to_x(lon);
         let y = latitude_to_y(lat);
         Self::new_projected(x, y, source_id)

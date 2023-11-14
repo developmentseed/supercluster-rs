@@ -58,7 +58,11 @@ impl SuperclusterBuilder {
 
         let mut data = Vec::with_capacity(self.points.len());
         for (i, (lon, lat)) in self.points.iter().enumerate() {
-            data.push(ClusterData::new(*lon, *lat, ClusterId::new_source_id(i)));
+            data.push(ClusterData::new_geographic(
+                *lon,
+                *lat,
+                ClusterId::new_source_id(i),
+            ));
         }
 
         let full_res_tree = TreeWithData::new(data, node_size);
@@ -85,40 +89,40 @@ impl SuperclusterBuilder {
         let min_points = self.options.min_points;
 
         let r = radius / (extent * usize::pow(2, zoom.try_into().unwrap()) as f64);
-        let cluster_data = &mut previous_tree_with_data.data;
+        let data = &mut previous_tree_with_data.data;
         let previous_tree = &previous_tree_with_data.tree;
         let mut next_data = vec![];
 
         // loop through each point
-        //  (idx, data) in cluster_data.iter().enumerate()
-        for idx in 0..cluster_data.len() {
-            let data = &cluster_data[idx];
-
+        for i in 0..data.len() {
             // if we've already visited the point at this zoom level, skip it
-            if data.zoom.is_some_and(|z| z <= zoom) {
+            if data[i].zoom.is_some_and(|z| z <= zoom) {
                 continue;
             }
 
-            // We clone this data instance to mutate it in isolation, and then set it back on the
-            // cluster_data vec at the end
-            let mut data = data.clone();
-
-            data.zoom = Some(zoom);
+            data[i].zoom = Some(zoom);
 
             // find all nearby points
-            let x = data.x;
-            let y = data.y;
+            let x = data[i].x;
+            let y = data[i].y;
             let neighbor_ids = previous_tree.as_kdbush().within(x, y, r);
 
-            let num_points_origin = data.num_points;
+            let num_points_origin = data[i].num_points;
             let mut num_points = num_points_origin;
 
             // count the number of points in a potential cluster
-            for neighbor_id in neighbor_ids.iter() {
+            for neighbor_id in &neighbor_ids {
                 // filter out neighbors that are already processed
-                let neighbor_data = &cluster_data[*neighbor_id];
-                if neighbor_data.zoom.is_some_and(|z| z > zoom) {
-                    num_points += data.num_points;
+
+                // NOTE: in the original implementation, it checked
+                // `if (data[k + OFFSET_ZOOM] > zoom)`
+                // But note that the `OFFSET_ZOOM` in the data array was **initialized** to
+                // `Infinity`. Therefore, this should also be true when `.zoom.is_none()`.
+
+                if data[*neighbor_id].zoom.is_none()
+                    || data[*neighbor_id].zoom.is_some_and(|z| z > zoom)
+                {
+                    num_points += data[*neighbor_id].num_points;
                 }
             }
 
@@ -128,36 +132,27 @@ impl SuperclusterBuilder {
                 let mut wy = y * num_points_origin as f64;
 
                 // encode both zoom and point index on which the cluster originated -- offset by total length of features
-                let id = ClusterId::new(idx, zoom, self.points.len());
+                let id = ClusterId::new(i, zoom, self.points.len());
 
                 for neighbor_id in neighbor_ids {
-                    let neighbor_data = &cluster_data[neighbor_id];
-
-                    if neighbor_data.zoom.is_some_and(|z| z <= zoom) {
+                    if data[neighbor_id].zoom.is_some_and(|z| z <= zoom) {
                         continue;
                     }
 
-                    // TODO: change this section to just create a new ClusterData object manually
-                    // instead of cloning and then setting fields
-
-                    // Clone this value to mutate it
-                    let mut neighbor_data = neighbor_data.clone();
-
                     // save the zoom (so it doesn't get processed twice)
-                    neighbor_data.zoom = Some(zoom);
+                    data[neighbor_id].zoom = Some(zoom);
 
-                    let num_points2 = neighbor_data.num_points as f64;
+                    let num_points2 = data[neighbor_id].num_points as f64;
+
                     // accumulate coordinates for calculating weighted center
-                    wx += neighbor_data.x * num_points2;
-                    wy += neighbor_data.y * num_points2;
+                    wx += data[neighbor_id].x * num_points2;
+                    wy += data[neighbor_id].y * num_points2;
 
-                    neighbor_data.parent_id = Some(id);
-
-                    // Re-set changed onto array
-                    cluster_data[neighbor_id] = neighbor_data;
+                    data[neighbor_id].parent_id = Some(id);
                 }
 
-                cluster_data[idx].parent_id = Some(id);
+                data[i].parent_id = Some(id);
+
                 next_data.push(ClusterData {
                     x: wx / num_points as f64,
                     y: wy / num_points as f64,
@@ -168,31 +163,20 @@ impl SuperclusterBuilder {
                 });
             } else {
                 // left points as unclustered
-                // TODO: double check I'm adding the right thing
-                next_data.push(data.clone());
+                next_data.push(data[i].clone());
 
                 if num_points > 1 {
-                    for neighbor_id in neighbor_ids.iter() {
-                        let neighbor_data = &cluster_data[*neighbor_id];
-
-                        if neighbor_data.zoom.is_some_and(|z| z <= zoom) {
+                    for neighbor_id in neighbor_ids {
+                        if data[neighbor_id].zoom.is_some_and(|z| z <= zoom) {
                             continue;
                         }
 
-                        let mut neighbor_data = neighbor_data.clone();
-                        neighbor_data.zoom = Some(zoom);
+                        data[neighbor_id].zoom = Some(zoom);
 
-                        // Need to set back onto cluster_data to emulate changing the `data` array
-                        // directly like JS does
-                        cluster_data[*neighbor_id] = neighbor_data.clone();
-                        next_data.push(neighbor_data);
+                        next_data.push(data[neighbor_id].clone());
                     }
                 }
             }
-
-            // Need to set back onto cluster_data to emulate changing the `data` array
-            // directly like JS does
-            cluster_data[idx] = data;
         }
 
         TreeWithData::new(next_data, self.options.node_size)
