@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-// TODO: fix export
-use flatbush::kdbush::r#trait::KdbushIndex;
+use flatbush::kdbush::KdbushIndex;
 
 use crate::cluster::{ClusterId, ClusterInfo};
+use crate::error::SuperclusterError;
 use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
 use crate::util::{latitude_to_y, longitude_to_x};
@@ -76,9 +76,9 @@ impl Supercluster {
         let mut clusters = Vec::with_capacity(ids.len());
         for id in ids {
             let cluster_data = &data[id];
-            let num_points = cluster_data.num_points;
+
             // If there's more than one point in this cluster, group them.
-            if num_points > 1 {
+            if cluster_data.num_points > 1 {
                 clusters.push(ClusterInfo::new_cluster(
                     cluster_data.source_id,
                     cluster_data.x,
@@ -94,100 +94,162 @@ impl Supercluster {
         clusters
     }
 
-    pub fn get_children(&self, cluster_id: ClusterId) -> Vec<usize> {
-        let origin_id = cluster_id.get_origin_idx(self.points.len());
-        let origin_zoom = cluster_id.get_origin_zoom(self.points.len());
+    pub fn get_children(
+        &self,
+        cluster_id: ClusterId,
+    ) -> Result<Vec<ClusterInfo>, SuperclusterError> {
+        let origin_id = self.get_origin_idx(cluster_id);
+        let origin_zoom = self.get_origin_zoom(cluster_id);
 
-        let tree_with_data = self.trees.get(&origin_zoom).unwrap();
+        let tree_with_data = match self.trees.get(&origin_zoom) {
+            Some(tree_with_data) => tree_with_data,
+            None => return Err(SuperclusterError::NoClusterFound),
+        };
 
-        let cluster_data = tree_with_data.data();
+        let data = tree_with_data.data();
         let tree = tree_with_data.tree();
-        // if (origin_id * this.stride >= data.length) throw new Error(errorMsg);
+        if origin_id >= data.len() {
+            return Err(SuperclusterError::NoClusterFound);
+        }
 
         let r = self.options.radius
             / (self.options.extent * usize::pow(2, (origin_zoom - 1).try_into().unwrap()) as f64);
-        let x = cluster_data[origin_id].x;
-        let y = cluster_data[origin_id].y;
+        let x = data[origin_id].x;
+        let y = data[origin_id].y;
         let ids = tree.as_kdbush().within(x, y, r);
         let mut children = vec![];
 
         for id in ids {
-            let child_data = &cluster_data[id];
-            if child_data
+            let cluster_data = &data[id];
+
+            if cluster_data
                 .parent_id
                 .is_some_and(|parent_id| parent_id == cluster_id)
             {
-                if child_data.num_points > 1 {
-                    todo!()
+                if cluster_data.num_points > 1 {
+                    children.push(ClusterInfo::new_cluster(
+                        cluster_data.source_id,
+                        cluster_data.x,
+                        cluster_data.y,
+                        cluster_data.num_points,
+                    ));
                 } else {
-                    children.push(self.points[child_data.source_id.as_usize()]);
+                    let (x, y) = self.points[id];
+                    children.push(ClusterInfo::new_leaf(cluster_data.source_id, x, y))
                 }
             }
         }
 
-        assert!(children.len() > 0);
+        if children.is_empty() {
+            return Err(SuperclusterError::NoClusterFound);
+        }
 
-        todo!()
-        // return children;
+        Ok(children)
     }
 
-    pub fn get_leaves(&self, cluster_id: ClusterId, limit: Option<usize>, offset: Option<usize>) {
+    pub fn get_leaves(
+        &self,
+        cluster_id: ClusterId,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Result<Vec<ClusterInfo>, SuperclusterError> {
         let limit = limit.unwrap_or(10);
         let offset = offset.unwrap_or(0);
 
-        // let mut leaves = vec![];
+        let mut leaves = vec![];
+        self.append_leaves(&mut leaves, cluster_id, limit, offset, 0)?;
 
-        // leaves
-        todo!()
+        Ok(leaves)
     }
 
-    pub fn get_tile(self, z: usize, x: usize, y: usize) {
-        let tree = self.trees.get(&self.clamp_zoom(z)).unwrap();
-        let z2 = usize::pow(2, z.try_into().unwrap());
-        let p = self.options.radius / self.options.extent;
-        // let top = (y - p) / z2;
-        // let bottom = (y + 1 + p) / z2;
+    // pub fn get_tile(self, z: usize, x: usize, y: usize) {
+    //     let tree = self.trees.get(&self.clamp_zoom(z)).unwrap();
+    //     let z2 = usize::pow(2, z.try_into().unwrap()) as f64;
+    //     let p = self.options.radius / self.options.extent;
+    //     let top = (y as f64 - p) / z2;
+    //     let bottom = (y as f64 + 1.0 + p) / z2;
 
-        todo!()
-    }
+    //     todo!()
+    // }
 
     /// Returns the zoom on which the cluster expands into several children (useful for "click to
     /// zoom" feature) given the cluster's cluster_id.
-    pub fn get_cluster_expansion_zoom(&self, cluster_id: ClusterId) -> usize {
+    pub fn get_cluster_expansion_zoom(
+        &self,
+        cluster_id: ClusterId,
+    ) -> Result<usize, SuperclusterError> {
+        let mut cluster_id = cluster_id;
         let mut expansion_zoom = cluster_id.get_origin_zoom(self.points.len()) - 1;
         while expansion_zoom <= self.options.max_zoom {
-            let children = self.get_children(cluster_id);
+            let children = self.get_children(cluster_id)?;
             expansion_zoom += 1;
             if children.len() != 1 {
                 break;
             }
-            todo!()
-            // cluster_id = children[0].properties.cluster_id;
+            cluster_id = children[0].id();
         }
-        return expansion_zoom;
+
+        Ok(expansion_zoom)
     }
 
     fn append_leaves(
         &self,
+        result: &mut Vec<ClusterInfo>,
         cluster_id: ClusterId,
         limit: usize,
         offset: usize,
         skipped: usize,
-    ) -> Vec<usize> {
-        todo!()
+    ) -> Result<usize, SuperclusterError> {
+        let children = self.get_children(cluster_id)?;
+
+        let mut skipped = skipped;
+
+        for child in children {
+            if child.cluster() {
+                if skipped + child.count() <= offset {
+                    // skip the whole cluster
+                    skipped += child.count();
+                } else {
+                    // enter the cluster
+                    skipped = self.append_leaves(result, child.id(), limit, offset, skipped)?;
+                    // exit the cluster
+                }
+                skipped += 1;
+            } else if skipped < offset {
+                // skip a single point
+                skipped += 1;
+            } else {
+                // add a single point
+                result.push(child);
+            }
+
+            if result.len() == limit {
+                break;
+            }
+        }
+
+        Ok(skipped)
     }
 
     fn clamp_zoom(&self, zoom: usize) -> usize {
         zoom.clamp(self.options.min_zoom, self.options.max_zoom + 1)
     }
+
+    /// get index of the point from which the cluster originated
+    fn get_origin_idx(&self, cluster_id: ClusterId) -> usize {
+        cluster_id.get_origin_idx(self.points.len())
+    }
+
+    /// get zoom of the point from which the cluster originated
+    fn get_origin_zoom(&self, cluster_id: ClusterId) -> usize {
+        cluster_id.get_origin_zoom(self.points.len())
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::SuperclusterBuilder;
     use crate::test::load_fixture::load_places;
-
-    use super::*;
+    use crate::SuperclusterBuilder;
 
     #[test]
     fn test_builder() {
@@ -198,6 +260,7 @@ mod test {
         }
         let supercluster = builder.finish();
         let clusters = supercluster.get_clusters(-50., -50., 50., 50., 0);
+        dbg!(clusters.len());
         dbg!(&clusters);
         // dbg!(supercluster);
     }

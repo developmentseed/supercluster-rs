@@ -86,6 +86,7 @@ dependencies = [
  "flatbush",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]
