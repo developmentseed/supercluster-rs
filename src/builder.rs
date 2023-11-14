@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use flatbush::kdbush::r#trait::KdbushIndex;
+use flatbush::kdbush::KdbushIndex;
 
 use crate::cluster::{ClusterData, ClusterId};
 use crate::options::SuperclusterOptions;
