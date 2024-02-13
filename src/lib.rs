@@ -1,13 +1,13 @@
-pub mod builder;
-pub mod cluster;
+mod builder;
+mod cluster;
 pub mod error;
-pub mod options;
-pub mod supercluster;
-pub mod tree;
-pub mod util;
+mod options;
+mod supercluster;
+mod tree;
+pub(crate) mod util;
 
 pub use builder::SuperclusterBuilder;
-pub use cluster::{ClusterData, ClusterId};
+pub use cluster::{ClusterData, ClusterId, ClusterInfo};
 pub use options::SuperclusterOptions;
 pub use supercluster::Supercluster;
 

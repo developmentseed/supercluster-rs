@@ -26,34 +26,22 @@ impl SuperclusterOptions {
     }
 
     pub fn with_min_zoom(self, min_zoom: usize) -> Self {
-        let mut new = self;
-        new.min_zoom = min_zoom;
-        new
+        SuperclusterOptions { min_zoom, ..self }
     }
     pub fn with_max_zoom(self, max_zoom: usize) -> Self {
-        let mut new = self;
-        new.max_zoom = max_zoom;
-        new
+        SuperclusterOptions { max_zoom, ..self }
     }
     pub fn with_min_points(self, min_points: usize) -> Self {
-        let mut new = self;
-        new.min_points = min_points;
-        new
+        SuperclusterOptions { min_points, ..self }
     }
     pub fn with_radius(self, radius: f64) -> Self {
-        let mut new = self;
-        new.radius = radius;
-        new
+        SuperclusterOptions { radius, ..self }
     }
     pub fn with_extent(self, extent: f64) -> Self {
-        let mut new = self;
-        new.extent = extent;
-        new
+        SuperclusterOptions { extent, ..self }
     }
     pub fn with_node_size(self, node_size: usize) -> Self {
-        let mut new = self;
-        new.node_size = node_size;
-        new
+        SuperclusterOptions { node_size, ..self }
     }
 }
 
