@@ -36,6 +36,12 @@ impl ClusterId {
     }
 }
 
+impl From<ClusterId> for usize {
+    fn from(value: ClusterId) -> Self {
+        value.0
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ClusterData {
     /// projected point x
@@ -77,15 +83,18 @@ impl ClusterData {
         }
     }
 
+    /// The x value of this point in Spherical Mercator projection
     pub fn x(&self) -> f64 {
         self.x
     }
 
+    /// The y value of this point in Spherical Mercator projection
     pub fn y(&self) -> f64 {
         self.y
     }
 }
 
+/// Information describing a cluster of points.
 #[derive(Clone, Debug)]
 pub struct ClusterInfo {
     /// If this is a cluster,
@@ -104,12 +113,24 @@ pub struct ClusterInfo {
     /// was added to the index.
     cluster: bool,
 
-    /// Note: this will always be 1 if `cluster`` is false
+    /// Note: this will always be 1 if `is_cluster` is false
     point_count: usize,
 }
 
+impl From<ClusterInfo> for ClusterId {
+    fn from(value: ClusterInfo) -> Self {
+        value.id()
+    }
+}
+
+impl From<&ClusterInfo> for ClusterId {
+    fn from(value: &ClusterInfo) -> Self {
+        value.id()
+    }
+}
+
 impl ClusterInfo {
-    pub fn new_cluster(id: ClusterId, x: f64, y: f64, count: usize) -> Self {
+    pub(crate) fn new_cluster(id: ClusterId, x: f64, y: f64, count: usize) -> Self {
         Self {
             id,
             x: x_to_longitude(x),
@@ -121,7 +142,7 @@ impl ClusterInfo {
 
     /// NOTE: here the x and y are already in the user's own coordinate system (usually lon-lat),
     /// so no need to reproject back.
-    pub fn new_leaf(id: ClusterId, x: f64, y: f64) -> Self {
+    pub(crate) fn new_leaf(id: ClusterId, x: f64, y: f64) -> Self {
         Self {
             id,
             x,
@@ -131,23 +152,35 @@ impl ClusterInfo {
         }
     }
 
+    /// If this is a cluster (i.e. [`cluster()`][Self::cluster] is `true`)
+    ///
+    /// If this is not a cluster (i.e. [`cluster()`][Self::cluster] is `false`), this references
+    /// the positional index of data originall added via SuperclusterBuilder.
     pub fn id(&self) -> ClusterId {
         self.id
     }
 
+    /// The longitude of the cluster
     pub fn x(&self) -> f64 {
         self.x
     }
 
+    /// The latitude of the cluster
     pub fn y(&self) -> f64 {
         self.y
     }
 
-    pub fn cluster(&self) -> bool {
+    /// Whether this object represents a cluster of containing points or a single input point.
+    ///
+    /// If true, references a cluster with containing data. Otherwise, is an original point that
+    /// was added to the index.
+    pub fn is_cluster(&self) -> bool {
         self.cluster
     }
 
     /// The number of points contained in this cluster
+    ///
+    /// This will always be 1 if [`is_cluster`][Self::is_cluster] is `false`.
     pub fn count(&self) -> usize {
         self.point_count
     }

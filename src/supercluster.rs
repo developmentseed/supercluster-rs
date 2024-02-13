@@ -8,6 +8,7 @@ use crate::options::SuperclusterOptions;
 use crate::tree::TreeWithData;
 use crate::util::{latitude_to_y, longitude_to_x};
 
+/// Create this via a [SuperclusterBuilder][crate::SuperclusterBuilder].
 #[derive(Debug, Clone)]
 pub struct Supercluster {
     options: SuperclusterOptions,
@@ -32,7 +33,9 @@ impl Supercluster {
         }
     }
 
-    /// Returns a vec with the cluster ids
+    /// Get clusters within a given bounding box and zoom.
+    ///
+    /// Returns a vec of [ClusterInfo] objects which point into indices of the original input data.
     pub fn get_clusters(
         &self,
         min_lng: f64,
@@ -94,6 +97,9 @@ impl Supercluster {
         clusters
     }
 
+    /// Returns the children of a cluster (on the next zoom level) given its id.
+    ///
+    /// You can access a cluster's id via the [`ClusterInfo::id`] method.
     pub fn get_children(
         &self,
         cluster_id: ClusterId,
@@ -147,6 +153,13 @@ impl Supercluster {
         Ok(children)
     }
 
+    /// Returns all the points of a cluster (given its cluster_id), with pagination support: limit
+    /// is the number of points to return (set to Infinity for all points), and offset is the
+    /// amount of points to skip (for pagination).
+    ///
+    /// You can access a cluster's id via the [`ClusterInfo::id`] method.
+    ///
+    /// If not provided, `limit` defaults to `10` and `offset` defaults to `0`.
     pub fn get_leaves(
         &self,
         cluster_id: ClusterId,
@@ -173,7 +186,9 @@ impl Supercluster {
     // }
 
     /// Returns the zoom on which the cluster expands into several children (useful for "click to
-    /// zoom" feature) given the cluster's cluster_id.
+    /// zoom" feature) given the cluster's id.
+    ///
+    /// You can access a cluster's id via the [`ClusterInfo::id`] method.
     pub fn get_cluster_expansion_zoom(
         &self,
         cluster_id: ClusterId,
@@ -205,7 +220,7 @@ impl Supercluster {
         let mut skipped = skipped;
 
         for child in children {
-            if child.cluster() {
+            if child.is_cluster() {
                 if skipped + child.count() <= offset {
                     // skip the whole cluster
                     skipped += child.count();

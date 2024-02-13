@@ -1,23 +1,35 @@
 /// Options for Supercluster generation
 #[derive(Debug, Clone, Copy)]
 pub struct SuperclusterOptions {
-    /// min zoom to generate clusters on
-    pub(crate) min_zoom: usize,
+    /// Minimum zoom level at which clusters are generated.
+    ///
+    /// Defaults to `0`.
+    pub min_zoom: usize,
 
-    /// max zoom level to cluster the points on
-    pub(crate) max_zoom: usize,
+    /// Maximum zoom level at which clusters are generated.
+    ///
+    /// Defaults to `16`.
+    pub max_zoom: usize,
 
-    /// minimum points to form a cluster
-    pub(crate) min_points: usize,
+    /// Minimum number of points to form a cluster.
+    ///
+    /// Defaults to `2`.
+    pub min_points: usize,
 
-    /// cluster radius in pixels
-    pub(crate) radius: f64,
+    /// Cluster radius, in pixels.
+    ///
+    /// Defaults to `40`.
+    pub radius: f64,
 
-    /// tile extent (radius is calculated relative to it)
-    pub(crate) extent: f64,
+    /// Tile extent. Radius is calculated relative to this value.
+    ///
+    /// Defaults to `512`.
+    pub extent: f64,
 
-    /// size of the KD-tree leaf node, affects performance
-    pub(crate) node_size: usize,
+    /// Size of the KD-tree leaf node. Affects performance.
+    ///
+    /// Defaults to `64`.
+    pub node_size: usize,
 }
 
 impl SuperclusterOptions {
