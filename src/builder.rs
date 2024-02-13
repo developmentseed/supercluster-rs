@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use flatbush::kdbush::KdbushIndex;
+use geo_index::kdtree::KDTreeIndex;
 
 use crate::cluster::{ClusterData, ClusterId};
 use crate::options::SuperclusterOptions;
@@ -105,7 +105,7 @@ impl SuperclusterBuilder {
             // find all nearby points
             let x = data[i].x;
             let y = data[i].y;
-            let neighbor_ids = previous_tree.as_kdbush().within(x, y, r);
+            let neighbor_ids = previous_tree.as_ref().within(x, y, r);
 
             let num_points_origin = data[i].num_points;
             let mut num_points = num_points_origin;
