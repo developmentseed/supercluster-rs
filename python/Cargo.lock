@@ -402,11 +402,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "flatbush"
-version = "0.1.0"
-source = "git+https://github.com/kylebarron/flatbush-rs?rev=5e5cdbf3f5ed033fa9db4e7be4f78fa83945511c#5e5cdbf3f5ed033fa9db4e7be4f78fa83945511c"
+name = "float_next_after"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bf7cc16383c4b8d58b9905a8509f02926ce3058053c056376248d958c9df1e8"
+
+[[package]]
+name = "geo-index"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "818dd7464a1edadbe7932a09b8e3672216597557100f23d1315f351e46c2c20e"
 dependencies = [
  "bytemuck",
+ "float_next_after",
+ "num-traits",
  "thiserror",
  "tinyvec",
 ]
@@ -920,7 +929,7 @@ dependencies = [
 name = "supercluster-rs"
 version = "0.1.0"
 dependencies = [
- "flatbush",
+ "geo-index",
  "thiserror",
 ]
 

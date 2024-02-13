@@ -6,7 +6,7 @@ use arrow::datatypes::{Field, Schema};
 use arrow::pyarrow::PyArrowType;
 use arrow::record_batch::RecordBatch;
 use pyo3::prelude::*;
-use supercluster_rs::cluster::ClusterInfo;
+use supercluster_rs::ClusterInfo;
 use supercluster_rs::Supercluster as _Supercluster;
 
 #[pyclass]
@@ -37,10 +37,10 @@ fn clusters_to_record_batch(clusters: Vec<ClusterInfo>) -> RecordBatch {
     let mut point_count_arr = UInt32Builder::with_capacity(clusters.len());
 
     for cluster in clusters {
-        id_arr.append_value(cluster.id().as_usize().try_into().unwrap());
+        id_arr.append_value(usize::from(cluster.id()).try_into().unwrap());
         x_arr.append_value(cluster.x());
         y_arr.append_value(cluster.y());
-        is_cluster_arr.append_value(cluster.cluster());
+        is_cluster_arr.append_value(cluster.is_cluster());
         point_count_arr.append_value(cluster.count().try_into().unwrap());
     }
 
