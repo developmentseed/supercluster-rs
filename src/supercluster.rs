@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use flatbush::kdbush::KdbushIndex;
+use geo_index::kdtree::KDTreeIndex;
 
 use crate::cluster::{ClusterId, ClusterInfo};
 use crate::error::SuperclusterError;
@@ -64,7 +64,7 @@ impl Supercluster {
 
         // NOTE! it is intentional for max_lat to be passed to min_y and for min_lat to be passed
         // to max_y. Apparently the spherical mercator coord system has a flipped y.
-        let ids = tree_with_data.tree.as_kdbush().range(
+        let ids = tree_with_data.tree.as_ref().range(
             longitude_to_x(min_lng),
             latitude_to_y(max_lat),
             longitude_to_x(max_lng),
@@ -116,7 +116,7 @@ impl Supercluster {
             / (self.options.extent * usize::pow(2, (origin_zoom - 1).try_into().unwrap()) as f64);
         let x = data[origin_id].x;
         let y = data[origin_id].y;
-        let ids = tree.as_kdbush().within(x, y, r);
+        let ids = tree.as_ref().within(x, y, r);
         let mut children = vec![];
 
         for id in ids {
