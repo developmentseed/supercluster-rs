@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Kyle Barron <kyle@developmentseed.org>"]
 license = "MIT"
+description = "Rust implementation of Supercluster for fast hierarchical point clustering"
 repository = "https://github.com/developmentseed/supercluster-rs"
 categories = ["science::geo"]
 
