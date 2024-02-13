@@ -2,6 +2,10 @@
 name = "supercluster-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["Kyle Barron <kyle@developmentseed.org>"]
+license = "MIT"
+repository = "https://github.com/developmentseed/supercluster-rs"
+categories = ["science::geo"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
