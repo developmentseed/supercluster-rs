@@ -43,7 +43,7 @@ impl SuperclusterBuilder {
     }
 
     /// Convert a [SuperclusterBuilder] to a [Supercluster] by running hierarchical clustering.
-    pub fn finish(self) -> Supercluster {
+    pub fn finish(self, accumulators: &HashMap<String, &dyn Accumulator>) -> Supercluster {
         assert_eq!(
             self.pos,
             self.points.len(),
@@ -56,12 +56,22 @@ impl SuperclusterBuilder {
         let max_zoom = self.options.max_zoom;
         let node_size = self.options.node_size;
 
+        // Define callback to initialize statistics
+        let init_statistics = |i| {
+            let mut stats = HashMap::new();
+            accumulators.iter().for_each(|(key, acc_fn)| {
+                stats.insert(key.clone(), acc_fn.init(i));
+            });
+            Statistics::new(stats)
+        };
+
         let mut data = Vec::with_capacity(self.points.len());
         for (i, (lon, lat)) in self.points.iter().enumerate() {
             data.push(ClusterData::new_geographic(
                 *lon,
                 *lat,
                 ClusterId::new_source_id(i),
+                Some(init_statistics),
             ));
         }
 
@@ -73,7 +83,7 @@ impl SuperclusterBuilder {
         for zoom in (min_zoom..=max_zoom).rev() {
             // The tree at the next higher zoom
             let previous_tree = trees.get_mut(&(zoom + 1)).unwrap();
-            let current = self.cluster(previous_tree, zoom);
+            let current = self.cluster(previous_tree, zoom, accumulators);
 
             trees.insert(zoom, current);
         }
@@ -83,7 +93,12 @@ impl SuperclusterBuilder {
 
     /// Note: this mutates previous_tree's `data`.
     // This is derived from Supercluster._cluster in the original JS implementation
-    fn cluster(&self, previous_tree_with_data: &mut TreeWithData, zoom: usize) -> TreeWithData {
+    fn cluster(
+        &self,
+        previous_tree_with_data: &mut TreeWithData,
+        zoom: usize,
+        accumulators: &HashMap<String, &dyn Accumulator>,
+    ) -> TreeWithData {
         let radius = self.options.radius;
         let extent = self.options.extent;
         let min_points = self.options.min_points;
