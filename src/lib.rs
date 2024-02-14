@@ -4,6 +4,7 @@ mod builder;
 mod cluster;
 pub mod error;
 mod options;
+mod statistics;
 mod supercluster;
 mod tree;
 pub(crate) mod util;

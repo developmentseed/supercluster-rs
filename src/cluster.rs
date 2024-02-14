@@ -1,3 +1,4 @@
+use crate::statistics::Statistics;
 use crate::util::{latitude_to_y, longitude_to_x, x_to_longitude, y_to_latitude};
 
 // encode both zoom and point index on which the cluster originated -- offset by total length of
@@ -61,18 +62,40 @@ pub struct ClusterData {
 
     // number of points in a cluster
     pub(crate) num_points: usize,
+
+    pub(crate) statistics: Statistics,
 }
 
 impl ClusterData {
     /// Create a new object from longitude-latitude x and y values
-    pub fn new_geographic(lon: f64, lat: f64, source_id: ClusterId) -> Self {
+    pub fn new_geographic<F>(
+        lon: f64,
+        lat: f64,
+        source_id: ClusterId,
+        init_statistics: Option<F>,
+    ) -> Self
+    where
+        F: Fn(usize) -> Statistics,
+    {
         let x = longitude_to_x(lon);
         let y = latitude_to_y(lat);
-        Self::new_projected(x, y, source_id)
+        Self::new_projected(x, y, source_id, init_statistics)
     }
 
     /// Create a new object from spherical mercator x and y values
-    pub fn new_projected(x: f64, y: f64, source_id: ClusterId) -> Self {
+    pub fn new_projected<F>(
+        x: f64,
+        y: f64,
+        source_id: ClusterId,
+        init_statistics: Option<F>,
+    ) -> Self
+    where
+        F: Fn(usize) -> Statistics,
+    {
+        let statistics = init_statistics
+            .map(|init_fn| init_fn(source_id.into()))
+            .unwrap_or_default();
+
         Self {
             x,
             y,
@@ -80,6 +103,7 @@ impl ClusterData {
             source_id,
             parent_id: None,
             num_points: 1,
+            statistics,
         }
     }
 
